@@ -3,11 +3,15 @@ package com.iyzipay;
 import com.google.gson.Gson;
 import com.iyzipay.exception.HttpClientException;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +24,15 @@ public class HttpClient {
     private static final String CONTENT_TYPE = "Content-Type";
     private static final String ACCEPT = "Accept";
     private static final int TIMEOUT = 140000;
+    private static final KeyManagerFactory KEY_MANAGER_FACTORY;
+
+    static {
+        try {
+            KEY_MANAGER_FACTORY = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        } catch (NoSuchAlgorithmException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
 
     private HttpClient() {
     }
@@ -59,11 +72,16 @@ public class HttpClient {
 
     private String send(String url, HttpMethod httpMethod, InputStream content, Map<String, String> headers) {
         URLConnection raw;
-        HttpURLConnection conn = null;
+        HttpsURLConnection conn = null;
         try {
             raw = new URL(url).openConnection();
-            conn = HttpURLConnection.class.cast(raw);
+            conn = HttpsURLConnection.class.cast(raw);
 
+            SSLContext ctx = SSLContext.getInstance("TLSv1.2");
+            KEY_MANAGER_FACTORY.init(null, null);
+            ctx.init(KEY_MANAGER_FACTORY.getKeyManagers(), null, null);
+
+            conn.setSSLSocketFactory(ctx.getSocketFactory());
             conn.setRequestMethod(httpMethod.name());
 
             conn.setConnectTimeout(TIMEOUT);
